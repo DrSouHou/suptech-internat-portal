@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion - SupTech Internat</title>
+  <meta name="description" content="Plateforme de gestion de l'internat pour SupTech Santé et SupTech Environnement">
+
+  <!-- Enforce HTTPS / Prevent Mixed Content -->
+  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <!-- External CSS -->
+  <link rel="stylesheet" href="style.css">
+
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: var(--bg-body);
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toast-container"></div>
+
+  <!-- ==================== LOGIN ==================== -->
+  <div id="login-screen" class="screen active">
+    <div class="login-container">
+      <div class="login-brand">
+        <div class="login-logo-wrap">
+          <div class="login-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+          </div>
+        </div>
+        <div class="login-title">SupTech Internat</div>
+        <div class="login-sub">UIB· Mohammedia</div>
+      </div>
+
+      <div class="login-card glass-panel">
+        <form id="login-form" onsubmit="event.preventDefault(); doLogin();">
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="login-email" placeholder="votre@email.ma" required>
+          </div>
+          <div class="field">
+            <label>Mot de passe</label>
+            <input type="password" id="login-pass" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="btn-login btn-gradient">Se connecter</button>
+        </form>
+
+        <div class="demo-hint" style="margin-top:20px;">
+          <strong>Démo Admin :</strong> admin@suptech.ma / adminpassword<br>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Toast notification system
+    function showToast(message) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg> ${message}`;
+
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('fadeOut');
+        toast.addEventListener('animationend', () => {
+          toast.remove();
+        });
+      }, 3000);
+    }
+
+    async function doLogin() {
+      const email = document.getElementById('login-email').value;
+      const pass = document.getElementById('login-pass').value;
+
+      try {
+        const res = await fetch('http://localhost:5000/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, password: pass })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('role', data.role);
+          window.location.href = 'index.html';
+        } else {
+          showToast(data.error || 'Erreur de connexion');
+        }
+      } catch (e) {
+        showToast('Serveur injoignable');
+      }
+    }
+
+    // Redirect to app if already logged in
+    if (localStorage.getItem('token')) {
+      window.location.href = 'index.html';
+    }
+  </script>
+</body>
+
+</html>

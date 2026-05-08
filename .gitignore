@@ -1,0 +1,14 @@
+# Ignore Environment Variables (CRITICAL for Security)
+.env
+backend/.env
+
+# Ignore Python Virtual Environments
+venv/
+env/
+backend/venv/
+backend/env/
+
+# Ignore Python Cache Files
+__pycache__/
+*.pyc
+*.pyo

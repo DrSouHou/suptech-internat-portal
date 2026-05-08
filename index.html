@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+
+<html lang="fr">
+
+<head>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>SupTech Internat - Gestion Résidentielle</title>
+  <meta
+    content="Plateforme de gestion de l'internat pour SupTech Santé et SupTech Environnement (FRDISI / Suptech Info)"
+    name="description" />
+  <!-- Enforce HTTPS / Prevent Mixed Content -->
+  <meta content="upgrade-insecure-requests" http-equiv="Content-Security-Policy" />
+  <!-- Modern Fonts -->
+  <link href="https://fonts.googleapis.com" rel="preconnect" />
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Outfit:wght@400;500;600;700;800&amp;display=swap"
+    rel="stylesheet" />
+  <!-- External CSS -->
+  <link href="style.css" rel="stylesheet" />
+  <!-- Export Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+</head>
+
+<body onload="if(typeof checkAuth === 'function') checkAuth()">
+  <!-- TOAST CONTAINER -->
+  <div id="toast-container"></div>
+
+  <!-- ==================== MODALS (Top-level for guaranteed visibility) ==================== -->
+  <div class="modal-overlay" id="modal-resident">
+    <div class="modal glass-panel">
+      <div class="modal-title">Ajouter un résident<span class="modal-close" onclick="closeModal('resident')">×</span>
+      </div>
+      <form onsubmit="event.preventDefault(); addResident();">
+        <div class="form-grid">
+          <div class="form-field"><label>Prénom</label><input id="add-res-prenom" required="" type="text" /></div>
+          <div class="form-field"><label>Nom</label><input id="add-res-nom" required="" type="text" /></div>
+          <div class="form-field full"><label>Email</label><input id="add-res-email" placeholder="resident@suptech.ma"
+              required="" type="email" /></div>
+          <div class="form-field full"><label>Téléphone</label><input id="add-res-phone" placeholder="06..."
+              type="tel" /></div>
+          <div class="form-field full"><label>École (FRDISI)</label>
+            <select id="add-res-ecole" required="">
+              <option value="">Choisir...</option>
+              <option>SupTech Santé</option>
+              <option>SupTech Environnement</option>
+              <option>Suptech Info</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Étage</label>
+            <select id="add-res-etage" onchange="updateRoomDropdown()" required="">
+              <option value="">Sélectionner</option>
+              <option value="Rez-de-chaussée">RDC</option>
+              <option value="Étage 1">Étage 1</option>
+              <option value="Étage 2">Étage 2</option>
+              <option value="Étage 3">Étage 3</option>
+              <option value="Étage 4">Étage 4</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Type chambre</label>
+            <select id="add-res-type" onchange="updateRoomDropdown()" required="">
+              <option value="">Sélectionner</option>
+              <option value="Individuelle">Individuelle</option>
+              <option value="Double">Double</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Chambre disponible</label>
+            <select id="add-res-room" required="">
+              <option value="">Choisir étage et type d'abord</option>
+            </select>
+          </div>
+          <div class="form-field full"><label>Date d'entrée</label><input id="add-res-date" type="date"
+              value="2025-09-01" /></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-outline" onclick="closeModal('resident')" type="button">Annuler</button>
+          <button class="btn-primary btn-gradient" type="submit">Ajouter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="modal-overlay" id="modal-admin">
+    <div class="modal glass-panel">
+      <div class="modal-title">Nouvel admin FRDISI<span class="modal-close" onclick="closeModal('admin')">×</span></div>
+      <form onsubmit="event.preventDefault(); addAdmin();">
+        <div class="form-grid">
+          <div class="form-field full"><label>Nom Complet</label><input id="new-admin-name" required="" type="text" />
+          </div>
+          <div class="form-field full"><label>Prénom</label><input id="new-admin-prenom" required="" type="text" />
+          </div>
+          <div class="form-field full"><label>Nom</label><input id="new-admin-nom" required="" type="text" /></div>
+          <div class="form-field full"><label>Email</label><input id="new-admin-email" required="" type="email" /></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-outline" onclick="closeModal('admin')" type="button">Annuler</button>
+          <button class="btn-primary btn-gradient" type="submit">Créer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="modal-overlay" id="modal-reclamation">
+    <div class="modal glass-panel">
+      <div class="modal-title">Réclamation<span class="modal-close" onclick="closeModal('reclamation')">×</span></div>
+      <form onsubmit="event.preventDefault(); submitReclamation();">
+        <div class="form-field mb-16">
+          <label>Type de problème</label>
+          <div class="category-buttons">
+            <button class="btn-category" onclick="selectCategory(this, 'WiFi')" type="button">
+              <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                viewbox="0 0 24 24">
+                <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+                <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                <line x1="12" x2="12.01" y1="20" y2="20"></line>
+              </svg>
+              WiFi
+            </button>
+            <button class="btn-category" onclick="selectCategory(this, 'Électricité')" type="button">
+              <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                viewbox="0 0 24 24">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+              Électricité
+            </button>
+            <button class="btn-category" onclick="selectCategory(this, 'Plomberie')" type="button">
+              <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                viewbox="0 0 24 24">
+                <path
+                  d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z">
+                </path>
+              </svg>
+              Plomberie
+            </button>
+            <button class="btn-category" onclick="selectCategory(this, 'Nettoyage')" type="button">
+              <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                viewbox="0 0 24 24">
+                <path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"></path>
+              </svg>
+              Nettoyage
+            </button>
+            <button class="btn-category" onclick="selectCategory(this, 'Sécurité')" type="button">
+              <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                viewbox="0 0 24 24">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+              Sécurité
+            </button>
+            <button class="btn-category" onclick="selectCategory(this, 'Paiement')" type="button">
+              <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                viewbox="0 0 24 24">
+                <rect height="16" rx="2" ry="2" width="22" x="1" y="4"></rect>
+                <line x1="1" x2="23" y1="10" y2="10"></line>
+              </svg>
+              Paiement
+            </button>
+            <button class="btn-category" onclick="selectCategory(this, 'Autre')" type="button">
+              <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                viewbox="0 0 24 24">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" x2="8" y1="13" y2="13"></line>
+                <line x1="16" x2="8" y1="17" y2="17"></line>
+              </svg>
+              Autre
+            </button>
+          </div>
+          <input id="reclamation-type" required="" type="hidden" />
+        </div>
+        <div class="form-field"><label>Description</label><textarea id="reclamation-desc"
+            placeholder="Détaillez votre problème..." required="" rows="4"></textarea></div>
+        <div class="form-field">
+          <label>Pièce jointe (Image)</label>
+          <input accept="image/*" class="file-input" type="file" />
+        </div>
+        <div class="modal-actions mt-16">
+          <button class="btn-outline" onclick="closeModal('reclamation')" type="button">Annuler</button>
+          <button class="btn-primary btn-gradient" type="submit">Soumettre</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="modal-overlay" id="modal-success">
+    <div class="modal glass-panel" style="text-align:center; padding:40px;">
+      <div class="fw-bold text-lg mb-8" id="success-title">Succès</div>
+      <div class="text-muted mb-24" id="success-body">L'action a été réalisée avec succès.</div>
+      <button class="btn-primary btn-gradient" onclick="closeModal('success')">Fermer</button>
+    </div>
+  </div>
+  <div class="modal-overlay" id="modal-repondre-rec">
+    <div class="modal glass-panel">
+      <div class="modal-title">Répondre à la réclamation<span class="modal-close"
+          onclick="closeModal('repondre-rec')">×</span></div>
+      <form onsubmit="event.preventDefault(); submitReclamationReply();">
+        <input id="reply-rec-id" type="hidden" />
+        <div class="form-field full">
+          <label>Message / Réponse</label>
+          <textarea id="reply-rec-msg" required="" rows="4"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-outline" onclick="closeModal('repondre-rec')" type="button">Annuler</button>
+          <button class="btn-primary btn-gradient" type="submit">Envoyer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="modal-overlay" id="modal-suggest-activity">
+    <div class="modal glass-panel">
+      <div class="modal-title">Nouvelle Activité<span class="modal-close"
+          onclick="closeModal('suggest-activity')">×</span></div>
+      <form onsubmit="event.preventDefault(); submitActivity();">
+        <div class="form-grid">
+          <div class="form-field full"><label>Titre</label><input id="act-title" required="" type="text" /></div>
+          <div class="form-field"><label>Date (ex: 15 Juin 2025)</label><input id="act-date" required="" type="text" />
+          </div>
+          <div class="form-field"><label>Lieu</label><input id="act-desc" required="" type="text" /></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-outline" onclick="closeModal('suggest-activity')" type="button">Annuler</button>
+          <button class="btn-primary btn-gradient" type="submit">Soumettre</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="modal-overlay" id="modal-edit-resident">
+    <div class="modal glass-panel">
+      <div class="modal-title">Modifier Résident<span class="modal-close" onclick="closeModal('edit-resident')">×</span>
+      </div>
+      <form onsubmit="event.preventDefault(); updateResident();">
+        <input id="edit-res-id" type="hidden" />
+        <div class="form-grid">
+          <div class="form-field full"><label>Nom Complet</label><input id="edit-res-name" required="" type="text" />
+          </div>
+          <div class="form-field full"><label>Statut Paiement</label>
+            <select id="edit-res-status">
+              <option value="Payé">Payé</option>
+              <option value="En attente">En attente</option>
+              <option value="Retard">Retard</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-outline" onclick="closeModal('edit-resident')" type="button">Annuler</button>
+          <button class="btn-primary btn-gradient" type="submit">Sauvegarder</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="modal-overlay" id="modal-annonce">
+    <div class="modal glass-panel">
+      <div class="modal-title">Nouvelle Annonce<span class="modal-close" onclick="closeModal('annonce')">×</span></div>
+      <form onsubmit="event.preventDefault(); createAnnonce();">
+        <div class="form-grid">
+          <div class="form-field full"><label>Titre</label><input id="annonce-title" required="" type="text" /></div>
+          <div class="form-field full"><label>Catégorie</label>
+            <select id="annonce-cat" required="">
+              <option value="Vente">Vente / Achat</option>
+              <option value="Service">Service</option>
+              <option value="Événement">Événement</option>
+            </select>
+          </div>
+          <div class="form-field full"><label>Contenu</label><textarea id="annonce-content" required=""
+              rows="4"></textarea></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-outline" onclick="closeModal('annonce')" type="button">Annuler</button>
+          <button class="btn-primary btn-gradient" type="submit">Publier</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="modal-overlay" id="modal-room-details">
+    <div class="modal glass-panel">
+      <div class="modal-title" id="rd-id">Détails Chambre<span class="modal-close"
+          onclick="closeModal('room-details')">×</span></div>
+      <div class="mb-16">
+        <span class="text-muted">Type: </span> <span class="fw-bold" id="rd-type">...</span><br />
+        <span class="text-muted">Statut: </span> <span class="fw-bold" id="rd-status">...</span>
+      </div>
+      <div class="fw-bold mb-8">Résidents:</div>
+      <ul id="rd-residents" style="padding-left: 20px;"></ul>
+      <div id="rd-qr-container"
+        style="margin-top: 20px; display: flex; justify-content: center; background: white; padding: 12px; border-radius: 8px; width: fit-content; margin-left: auto; margin-right: auto;">
+      </div>
+      <div class="modal-actions mt-24">
+        <button class="btn-outline" onclick="closeModal('room-details')" type="button">Fermer</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="modal-resident-info">
+    <div class="modal glass-panel">
+      <div class="modal-title">Détails du Résident<span class="modal-close"
+          onclick="closeModal('resident-info')">×</span></div>
+      <div class="mb-16">
+        <p><span class="text-muted">Nom Complet: </span> <span class="fw-bold" id="ri-name">...</span></p>
+        <p><span class="text-muted">Email: </span> <span class="fw-bold" id="ri-email">...</span></p>
+        <p><span class="text-muted">Téléphone: </span> <span class="fw-bold" id="ri-phone">...</span></p>
+        <p><span class="text-muted">École: </span> <span class="fw-bold" id="ri-school">...</span></p>
+        <p><span class="text-muted">Date d'entrée: </span> <span class="fw-bold" id="ri-date">...</span></p>
+        <p><span class="text-muted">Chambre: </span> <span class="fw-bold" id="ri-room">...</span></p>
+      </div>
+      <div class="modal-actions mt-24">
+        <button class="btn-outline" onclick="closeModal('resident-info')" type="button">Fermer</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="modal-room-info">
+    <div class="modal glass-panel">
+      <div class="modal-title">Occupant de la Chambre<span class="modal-close"
+          onclick="closeModal('room-info')">×</span></div>
+      <div class="mb-16">
+        <p><span class="text-muted">Nom Complet: </span> <span class="fw-bold" id="roi-name">...</span></p>
+        <p><span class="text-muted">Email: </span> <span class="fw-bold" id="roi-email">...</span></p>
+        <p><span class="text-muted">Téléphone: </span> <span class="fw-bold" id="roi-phone">...</span></p>
+        <p><span class="text-muted">École: </span> <span class="fw-bold" id="roi-school">...</span></p>
+        <p><span class="text-muted">Date d'entrée: </span> <span class="fw-bold" id="roi-date">...</span></p>
+      </div>
+      <div class="modal-actions mt-24">
+        <button class="btn-outline" onclick="closeModal('room-info')" type="button">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ADMIN APP ==================== -->
+  <div class="screen app-shell" id="admin-screen">
+    <!-- SIDEBAR ADMIN -->
+    <div class="sidebar">
+      <div class="sb-brand">
+        <div class="sb-logo">
+          <div class="sb-icon">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            </svg>
+          </div>
+          <div class="sb-text">
+            <div class="t1">SupTech Internat</div>
+            <div class="t2">Panel administrateur</div>
+          </div>
+        </div>
+      </div>
+      <div class="sb-user">
+        <div class="av av-admin">AK</div>
+        <div class="sb-user-info">
+          <div class="name">Admin Karim</div>
+          <div class="role">FRDISI Coordination</div>
+        </div>
+        <div class="role-pill rp-admin">ADMIN</div>
+      </div>
+      <div class="sb-nav">
+        <div class="nav-section">Principal</div>
+        <div class="nav-item active" onclick="aNav('a-dash',this)">
+          <svg class="ic" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+            <rect height="7" width="7" x="3" y="3"></rect>
+            <rect height="7" width="7" x="14" y="3"></rect>
+            <rect height="7" width="7" x="14" y="14"></rect>
+            <rect height="7" width="7" x="3" y="14"></rect>
+          </svg>
+          Tableau de bord
+        </div>
+        <div class="nav-item" onclick="aNav('a-residents',this)">
+          <svg class="ic" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          Résidents <span class="nb"></span>
+        </div>
+        <div class="nav-item" onclick="aNav('a-chambres',this)">
+          <svg class="ic" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          </svg>
+          Chambres
+        </div>
+        <div class="nav-section">Finance</div>
+        <div class="nav-item" onclick="aNav('a-paiements',this)">
+          <svg class="ic" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+            <line x1="12" x2="12" y1="1" y2="23"></line>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+          </svg>
+          Paiements <span class="nb" style="background:var(--accent-warm);"></span>
+        </div>
+        <div class="nav-item" onclick="aNav('a-reclamations',this)">
+          <svg class="ic" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          Réclamations <span class="nb" id="a-reclamations-badge" style="display: none;">0</span>
+        </div>
+        <div class="nav-section">Administration</div>
+        <div class="nav-item" onclick="aNav('a-admins',this)">
+          <svg class="ic" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+            <rect height="11" rx="2" ry="2" width="18" x="3" y="11"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          Administrateurs
+        </div>
+        <div class="nav-item" onclick="aNav('a-stats',this)">
+          <svg class="ic" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+            <line x1="18" x2="18" y1="20" y2="10"></line>
+            <line x1="12" x2="12" y1="20" y2="4"></line>
+            <line x1="6" x2="6" y1="20" y2="14"></line>
+          </svg>
+          Statistiques
+        </div>
+        <div class="nav-item" onclick="aNav('a-communaute',this)">
+          <svg class="ic" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          Communauté
+        </div>
+        <div class="nav-item" onclick="aNav('a-activites',this)">
+          <svg class="ic" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+            <polygon
+              points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2">
+            </polygon>
+          </svg>
+          Activités
+        </div>
+        <div class="nav-item" onclick="aNav('a-securite',this)">
+          <svg class="ic" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          Sécurité
+        </div>
+      </div>
+      <div class="sb-logout">
+        <div class="logout-btn" onclick="doLogout()">
+          <svg fill="none" height="18" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="18">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" x2="9" y1="12" y2="12"></line>
+          </svg>
+          Déconnexion
+        </div>
+      </div>
+    </div>
+    <!-- MAIN ADMIN -->
+    <div class="main-area">
+      <div class="topbar">
+        <button class="mobile-menu-btn" onclick="toggleSidebar()">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+            <line x1="3" x2="21" y1="12" y2="12"></line>
+            <line x1="3" x2="21" y1="6" y2="6"></line>
+            <line x1="3" x2="21" y1="18" y2="18"></line>
+          </svg>
+        </button>
+        <div class="page-title" id="a-page-title">Tableau de bord</div>
+        <div class="spacer"></div>
+        <div class="search-bar">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" x2="16.65" y1="21" y2="16.65"></line>
+          </svg>
+          <input onkeyup="filterGlobal(this.value)" placeholder="Rechercher..." type="text" />
+        </div>
+        <div class="notif-wrapper" style="position:relative;">
+          <div class="notif-btn" onclick="toggleNotifDropdown('admin')">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <div class="notif-dot" id="a-notif-dot" style="display: none;"></div>
+          </div>
+          <div class="notif-dropdown glass-panel" id="a-notif-dropdown"
+            style="display:none; position:absolute; right:0; top:48px; border-radius:8px; width:300px; box-shadow:0 4px 12px rgba(0,0,0,0.1); z-index:100; padding:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <div class="fw-bold">Notifications</div>
+              <button class="btn-outline" onclick="deleteAllNotifications()"
+                style="padding:4px 8px; font-size:12px;">Tout effacer</button>
+            </div>
+            <div id="a-notif-list" style="max-height: 300px; overflow-y: auto;"></div>
+          </div>
+        </div>
+        <button class="btn-primary btn-gradient" onclick="openModal('resident')">
+          <svg fill="none" height="14" stroke="currentColor" stroke-width="2"
+            style="margin-right:4px; vertical-align:middle;" viewbox="0 0 24 24" width="14">
+            <line x1="12" x2="12" y1="5" y2="19"></line>
+            <line x1="5" x2="19" y1="12" y2="12"></line>
+          </svg>
+          Ajouter
+        </button>
+      </div>
+      <div class="content">
+        <!-- DASHBOARD -->
+        <div class="view active" id="a-dash">
+          <div class="stats-grid">
+            <div class="stat-card glass-panel">
+              <div class="stat-icon-wrap" style="background: rgba(0,210,255,0.1); color: var(--primary);">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="stat-lbl">Résidents Actifs</div>
+                <div class="stat-val" id="kpi-actifs" style="color:var(--primary)"></div>
+                <div class="stat-sub positive">Inscrits</div>
+              </div>
+            </div>
+            <div class="stat-card glass-panel">
+              <div class="stat-icon-wrap" style="background: rgba(58,123,213,0.1); color: var(--secondary);">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="stat-lbl">Chambres occupées</div>
+                <div class="stat-val" id="kpi-chambres" style="color:var(--secondary)"></div>
+                <div class="stat-sub">Occupation</div>
+              </div>
+            </div>
+            <div class="stat-card glass-panel">
+              <div class="stat-icon-wrap" style="background: rgba(46,204,113,0.1); color: #2ecc71;">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+                  <line x1="12" x2="12" y1="1" y2="23"></line>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="stat-lbl">Revenus Mai</div>
+                <div class="stat-val" id="kpi-revenus" style="color:#2ecc71"></div>
+                <div class="stat-sub positive">DH collectés</div>
+              </div>
+            </div>
+            <div class="stat-card glass-panel">
+              <div class="stat-icon-wrap" style="background: rgba(231,76,60,0.1); color: #e74c3c;">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" x2="12" y1="8" y2="12"></line>
+                  <line x1="12" x2="12.01" y1="16" y2="16"></line>
+                </svg>
+              </div>
+              <div>
+                <div class="stat-lbl">Retards paiement</div>
+                <div class="stat-val" id="kpi-retards" style="color:#e74c3c"></div>
+                <div class="stat-sub negative">Retards dus</div>
+              </div>
+            </div>
+          </div>
+          <div class="grid2">
+            <div class="card glass-panel">
+              <div class="card-head">
+                <div class="card-title">Revenus mensuels 2025</div>
+              </div>
+              <div class="chart-wrap"><canvas id="revChart"></canvas></div>
+            </div>
+            <div class="card glass-panel">
+              <div class="card-head">
+                <div class="card-title">Occupation globale</div>
+              </div>
+              <div class="chart-wrap"><canvas id="occChart"></canvas></div>
+            </div>
+          </div>
+          <div class="card glass-panel">
+            <div class="card-head">
+              <div class="card-title">Résidents récents</div>
+              <button class="btn-link" onclick="aNav('a-residents',null)">Voir tout →</button>
+            </div>
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Résident</th>
+                    <th>Établissement</th>
+                    <th>Chambre</th>
+                    <th>Paiement</th>
+                    <th>Score</th>
+                  </tr>
+                </thead>
+                <tbody id="recent-residents-body">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="view" id="a-residents">
+          <div class="action-bar">
+            <select class="filter-select" id="filter-school" onchange="filterResidents()">
+              <option value="">Toutes les écoles</option>
+              <option value="SupTech Santé">SupTech Santé</option>
+              <option value="SupTech Environnement">SupTech Environnement</option>
+              <option value="Suptech Info">Suptech Info</option>
+            </select>
+            <select class="filter-select" id="filter-status" onchange="filterResidents()">
+              <option value="">Tous statuts</option>
+              <option value="Payé">Payé</option>
+              <option value="Retard">En retard</option>
+              <option value="Attente">En attente</option>
+            </select>
+            <div class="spacer"></div>
+            <button class="btn-primary btn-gradient" onclick="openModal('resident')">Ajouter résident</button>
+            <button class="btn-outline" onclick="exportExcel()">Export Excel</button>
+          </div>
+          <div class="card glass-panel">
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Résident</th>
+                    <th>Établissement</th>
+                    <th>Chambre</th>
+                    <th>Caution</th>
+                    <th>Loyer Mai</th>
+                    <th>Score</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <div class="table-user">
+                        <div class="av">FZ</div>
+                        <div>
+                          <div class="fw-bold">Fatima Zahra Idrissi</div>
+                          <div class="text-xs text-muted">STH-2024-047</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="text-muted">SupTech Santé</td>
+                    <td>101 Indiv.</td>
+                    <td><span class="badge bg-success">Payée</span></td>
+                    <td><span class="badge bg-success">Payé</span></td>
+                    <td class="score-high">92</td>
+                    <td><span class="status-indicator"><span class="dot dot-success"></span>OK</span></td>
+                    <td><button class="btn-action" onclick="mockAction('Édition du résident')">Modifier</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="view" id="a-chambres">
+          <div class="stats-grid-3">
+            <div class="stat-card glass-panel">
+              <div class="stat-lbl">Chambres individuelles</div>
+              <div class="stat-val gradient-text" id="count-chambres-indiv"></div>
+              <div class="stat-sub" id="count-chambres-indiv-occ"></div>
+            </div>
+            <div class="stat-card glass-panel">
+              <div class="stat-lbl">Chambres doubles</div>
+              <div class="stat-val gradient-text" id="count-chambres-double"></div>
+              <div class="stat-sub" id="count-chambres-double-occ"></div>
+            </div>
+            <div class="stat-card glass-panel">
+              <div class="stat-lbl">Caution obligatoire</div>
+              <div class="stat-val gradient-text">1 500</div>
+              <div class="stat-sub">DH par résident</div>
+            </div>
+          </div>
+          <div class="card glass-panel mt-16">
+            <div class="card-head">
+              <div class="card-title">Plan des chambres par étage</div>
+            </div>
+            <div class="floor-tabs" id="floor-tabs" style="display: flex; gap: 8px; padding: 0 20px; overflow-x: auto;">
+            </div>
+            <div class="room-grid" id="room-grid-a" style="margin-top: 16px;"></div>
+          </div>
+        </div>
+        <div class="view" id="a-paiements">
+          <div class="action-bar">
+            <div class="spacer"></div>
+            <button class="btn-outline" onclick="exportPDF('admin')">Export PDF</button>
+          </div>
+          <div class="card glass-panel mt-16">
+            <div class="table-responsive">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Résident</th>
+                    <th>École</th>
+                    <th>Type</th>
+                    <th>Montant</th>
+                    <th>Date</th>
+                    <th>Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Fatima Zahra Idrissi</td>
+                    <td class="text-muted">SupTech Santé</td>
+                    <td>Loyer Mai</td>
+                    <td class="fw-bold">1 500 DH</td>
+                    <td class="text-muted">01/05</td>
+                    <td><span class="badge bg-success">Payé</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="view" id="a-reclamations">
+          <div id="admin-reclamations-list">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+        <div class="view" id="a-admins">
+          <div class="action-bar">
+            <div class="text-muted">Gérez les comptes de la FRDISI</div>
+            <div class="spacer"></div>
+            <button class="btn-primary btn-gradient" onclick="openModal('admin')">Ajouter administrateur</button>
+          </div>
+          <div class="card glass-panel mt-16">
+            <div class="admin-item">
+              <div class="av av-admin">AK</div>
+              <div class="admin-info">
+                <div class="fw-bold">Admin</div>
+                <div class="text-xs text-muted">admin@suptech.ma</div>
+              </div>
+              <div class="text-right"><span class="badge bg-success">Actif</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="view" id="a-stats">
+          <div class="grid2-eq">
+            <div class="card glass-panel">
+              <div class="card-head">
+                <div class="card-title">Réclamations</div>
+              </div>
+              <div class="chart-wrap"><canvas id="recStatsChart"></canvas></div>
+            </div>
+            <div class="card glass-panel">
+              <div class="card-head">
+                <div class="card-title">Écoles</div>
+              </div>
+              <div class="chart-wrap"><canvas id="ecoleStatsChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="view" id="a-communaute">
+          <div class="card glass-panel">
+            <div class="card-head">
+              <div class="card-title">Modération Communauté</div>
+            </div>
+            <div id="admin-community-list"></div>
+          </div>
+        </div>
+        <div class="view" id="a-activites">
+          <div class="action-bar">
+            <div class="text-muted">Gérez les activités de l'internat</div>
+            <div class="spacer"></div>
+            <button class="btn-primary btn-gradient" onclick="openModal('suggest-activity')">Créer Activité</button>
+          </div>
+          <div class="card glass-panel mt-16">
+            <div class="card-head">
+              <div class="card-title">Activités en attente / publiées</div>
+            </div>
+            <div id="admin-activities-list"></div>
+          </div>
+        </div>
+        <div class="view" id="a-securite">
+          <div class="card glass-panel text-center" style="display: flex; flex-direction: column; align-items: center;">
+            <div class="card-head"
+              style="width: 100%; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; margin-bottom: 8px;">
+              <div class="card-title">Sécurité Admin</div>
+            </div>
+            <form onsubmit="event.preventDefault(); changePassword();"
+              style="width: 100%; max-width: 300px; margin-top: 16px;">
+              <div class="form-field full text-left">
+                <label>Nouveau mot de passe</label>
+                <input id="admin-new-pwd" placeholder="••••••••" required="" type="password" />
+              </div>
+              <button class="btn-primary btn-gradient w-100 mt-8" type="submit">Mettre à jour</button>
+            </form>
+          </div>
+          <div class="card glass-panel mt-16 text-center"
+            style="display: flex; flex-direction: column; align-items: center;">
+            <div class="card-head"
+              style="width: 100%; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; margin-bottom: 8px;">
+              <div class="card-title">Liste des Administrateurs</div>
+            </div>
+            <div id="admin-users-list" style="width: 100%; max-width: 500px; text-align: left;">
+              <!-- Admin list dynamically populated here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- ==================== RESIDENT APP ==================== -->
+  <div class="screen app-shell" id="res-screen">
+    <div class="sidebar">
+      <div class="sb-brand">
+        <div class="sb-logo">
+          <div class="sb-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            </svg></div>
+          <div class="sb-text">
+            <div class="t1">Espace Résident</div>
+            <div class="t2">SupTech Internat - Mohammedia</div>
+          </div>
+        </div>
+      </div>
+      <div class="sb-user">
+        <div class="av av-res" id="res-sidebar-initials">--</div>
+        <div class="sb-user-info">
+          <div class="name" id="res-sidebar-name">Chargement...</div>
+          <div class="role" id="res-sidebar-room">...</div>
+        </div>
+      </div>
+      <div class="sb-nav">
+        <div class="nav-section">Mon espace</div>
+        <div class="nav-item active" onclick="rNav('r-dash',this)">Tableau de bord</div>
+        <div class="nav-item" onclick="rNav('r-chambre',this)">Ma chambre &amp; QR</div>
+        <div class="nav-item" onclick="rNav('r-paiements',this)">Mes paiements</div>
+        <div class="nav-item" onclick="rNav('r-reclamations',this)">Mes réclamations</div>
+        <div class="nav-section">Services</div>
+        <div class="nav-item" onclick="rNav('r-reservation',this)">Réservation 2025-26</div>
+        <div class="nav-item" onclick="rNav('r-activites',this)">Activités</div>
+        <div class="nav-item" onclick="rNav('r-communaute',this)">Communauté</div>
+        <div class="nav-item" onclick="rNav('r-securite',this)">Sécurité</div>
+      </div>
+      <div class="sb-logout">
+        <div class="logout-btn" onclick="doLogout()">Déconnexion</div>
+      </div>
+    </div>
+    <div class="main-area">
+      <div class="topbar">
+        <button class="mobile-menu-btn" onclick="toggleSidebar()">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+            <line x1="3" x2="21" y1="12" y2="12"></line>
+            <line x1="3" x2="21" y1="6" y2="6"></line>
+            <line x1="3" x2="21" y1="18" y2="18"></line>
+          </svg>
+        </button>
+        <div class="page-title" id="r-page-title">Mon tableau de bord</div>
+        <div class="spacer"></div>
+        <div class="notif-wrapper" style="position:relative; margin-right: 16px;">
+          <div class="notif-btn" onclick="toggleNotifDropdown('res')">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <div class="notif-dot" id="r-notif-dot" style="display: none;"></div>
+          </div>
+          <div class="notif-dropdown glass-panel" id="r-notif-dropdown"
+            style="display:none; position:absolute; right:0; top:48px; border-radius:8px; width:300px; box-shadow:0 4px 12px rgba(0,0,0,0.1); z-index:100; padding:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <div class="fw-bold">Notifications</div>
+              <button class="btn-outline" onclick="deleteAllNotifications()"
+                style="padding:4px 8px; font-size:12px;">Tout effacer</button>
+            </div>
+            <div id="r-notif-list" style="max-height: 300px; overflow-y: auto;"></div>
+          </div>
+        </div>
+        <div class="school-badge">UIB - Mohammedia</div>
+      </div>
+      <div class="content">
+        <div class="view active" id="r-dash">
+          <div class="status-banner banner-success">
+            <div class="icon">
+              <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                style="width: 28px; height: 28px; color: #2ecc71;" viewbox="0 0 24 24">
+                <path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="fw-bold" id="res-dash-name">Bonjour !</div>
+              <div class="text-xs" id="res-dash-sub">Bienvenue sur votre espace résident</div>
+            </div>
+          </div>
+          <div class="stats-grid-3 mt-16">
+            <div class="stat-card glass-panel">
+              <div class="stat-lbl">Chambre</div>
+              <div class="stat-val gradient-text" id="res-dash-room-num">...</div>
+            </div>
+            <div class="stat-card glass-panel">
+              <div class="stat-lbl">Type Chambre</div>
+              <div class="stat-val gradient-text" id="res-dash-room-type">...</div>
+            </div>
+            <div class="stat-card glass-panel">
+              <div class="stat-lbl">Établissement</div>
+              <div class="stat-val gradient-text" id="res-dash-school" style="font-size: 1.25rem;">...</div>
+            </div>
+          </div>
+          <div class="card glass-panel mt-16 text-center" id="res-digital-card"
+            style="display: flex; flex-direction: column; align-items: center;">
+            <div class="card-head"
+              style="width: 100%; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; margin-bottom: 8px;">
+              <div class="card-title">Carte d'accès numérique</div>
+            </div>
+            <div id="res-qr-container"
+              style="margin: 16px 0; background: white; padding: 12px; border-radius: 8px; display: inline-block;">
+            </div>
+            <div class="text-muted text-xs" style="margin-bottom: 12px;">Présentez ce code à la réception</div>
+          </div>
+        </div>
+        <div class="view" id="r-securite">
+          <div class="card glass-panel text-center" style="display: flex; flex-direction: column; align-items: center;">
+            <div class="card-head"
+              style="width: 100%; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; margin-bottom: 8px;">
+              <div class="card-title">Sécurité</div>
+            </div>
+            <form onsubmit="event.preventDefault(); changePassword();"
+              style="width: 100%; max-width: 300px; margin-top: 16px;">
+              <div class="form-field full text-left">
+                <label>Nouveau mot de passe</label>
+                <input id="res-new-pwd" placeholder="••••••••" required="" type="password" />
+              </div>
+              <button class="btn-primary btn-gradient w-100 mt-8" type="submit">Mettre à jour</button>
+            </form>
+          </div>
+        </div>
+        <div class="view" id="r-chambre">
+          <div class="grid2-eq">
+            <div class="card glass-panel">
+              <div class="card-head">
+                <div class="card-title">Mon QR Code</div>
+              </div>
+              <div class="qr-container">
+                <div id="res-chambre-qr-box"
+                  style="background: white; padding: 12px; border-radius: 8px; display: inline-block;"></div>
+                <div class="fw-bold mt-16" id="res-chambre-qr-id">...</div>
+                <button class="btn-primary mt-16" onclick="mockAction('Téléchargement du QR Code...')">Télécharger
+                  QR</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="view" id="r-paiements">
+          <div class="card glass-panel">
+            <div class="card-head">
+              <div class="card-title">Mes Paiements et Factures</div><button class="btn-outline"
+                onclick="exportPDF('resident')">Export PDF</button>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Mois</th>
+                  <th>Montant</th>
+                  <th>Statut</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="res-financials-body">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="view" id="r-reclamations">
+          <button class="btn-primary btn-gradient mb-16" onclick="openModal('reclamation')">+ Nouvelle</button>
+          <div id="res-reclamations-list">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+        <div class="view" id="r-reservation">
+          <div class="card glass-panel text-center">
+            <div class="fw-bold text-lg mb-16">Renouvellement 2025-2026</div>
+            <button class="btn-primary btn-gradient"
+              onclick="mockAction('Demande de reconduction envoyée !')">Reconduire ma chambre</button>
+            <button class="btn-outline ml-8" onclick="mockAction('Demande de changement enregistrée')">Demander chambre
+              double</button>
+          </div>
+        </div>
+        <div class="view" id="r-activites">
+          <div class="card glass-panel">
+            <div class="card-head" style="margin-bottom: 16px;">
+              <div class="card-title">Événements &amp; Activités</div>
+              <button class="btn-primary btn-gradient" onclick="openModal('suggest-activity')">Suggérer
+                Activité</button>
+            </div>
+            <div class="grid2-eq" id="res-activities-grid">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+        <div class="view" id="r-communaute">
+          <div class="card glass-panel">
+            <div class="card-head" style="margin-bottom: 16px;">
+              <div class="card-title">Annonces Communautaires</div>
+              <button class="btn-primary btn-gradient" onclick="openModal('annonce')">Créer Annonce</button>
+            </div>
+            <div id="res-community-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="script.js"></script>
+</body>
+
+</html>
