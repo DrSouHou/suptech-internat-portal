@@ -12,7 +12,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["https://internat-638ln.ondigitalocean.app"])
 
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "super-secret-key")
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
