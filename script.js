@@ -411,7 +411,7 @@ async function renderAdminDashboard() {
       const kpiActifs = document.getElementById('kpi-actifs');
       if (kpiActifs) kpiActifs.textContent = residentsData.length;
 
-      const sidebarResCount = document.querySelector('.nav-item[onclick="aNav(\\'a-residents\\',this)"] .nb');
+      const sidebarResCount = document.querySelector(`.nav-item[onclick="aNav('a-residents',this)"] .nb`);
       if (sidebarResCount) sidebarResCount.textContent = residentsData.length;
     }
 
@@ -477,7 +477,7 @@ async function renderAdminResidents() {
     const res = await fetch(`${API_BASE_URL}/residents`, { headers: getAuthHeaders() });
     residentsData = await res.json();
 
-    const sidebarCount = document.querySelector('.nav-item[onclick="aNav(\\'a-residents\\',this)"] .nb');
+    const sidebarCount = document.querySelector(`.nav-item[onclick="aNav('a-residents',this)"] .nb`);
     if (sidebarCount) sidebarCount.textContent = residentsData.length;
 
     const kpiActifs = document.getElementById('kpi-actifs');
@@ -561,7 +561,7 @@ async function renderResidentViews() {
 
       // Generate Digital Access Card QR
       const resQrContainer = document.getElementById('res-qr-container');
-      const qrData = `ID: ${profile._id}\\nNom: ${profile.name}\\nChambre: ${profile.room}`;
+      const qrData = `ID: ${profile._id}\nNom: ${profile.name}\nChambre: ${profile.room}`;
 
       if (resQrContainer) {
         resQrContainer.innerHTML = '';
@@ -629,7 +629,6 @@ async function renderResidentViews() {
   updateNotificationsBadge();
 }
 
-// Room Grid generation
 // Room Grid generation
 async function buildRoomGrid() {
   try {
@@ -798,7 +797,7 @@ function showRoomDetails(room) {
   const resList = document.getElementById('rd-residents');
   resList.innerHTML = '';
 
-  let qrText = `Chambre: ${room.id}\\n`;
+  let qrText = `Chambre: ${room.id}\n`;
 
   if (!room.residents || room.residents.length === 0) {
     resList.innerHTML = '<li class="text-muted">Aucun résident</li>';
@@ -836,7 +835,7 @@ function updateRoomDropdown() {
   roomSelect.innerHTML = '<option value="">Choisir la chambre...</option>';
 
   if (!etageSelect || !typeSelect) {
-    roomSelect.innerHTML = '<option value="">Choisir étage et type d\\'abord</option>';
+    roomSelect.innerHTML = '<option value="">Choisir étage et type d\'abord</option>';
     return;
   }
 
@@ -849,7 +848,7 @@ function updateRoomDropdown() {
 
   const normalizeStr = (str) => {
     if (!str) return '';
-    return str.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().trim();
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   };
 
   const normEtage = normalizeStr(etageSelect);
@@ -1130,7 +1129,7 @@ async function createAnnonce() {
   const content = document.getElementById('annonce-content').value;
 
   const payload = {
-    content: `[${cat}] ${title}\\n\\n${content}`
+    content: `[${cat}] ${title}\n\n${content}`
   };
 
   try {
@@ -1208,7 +1207,7 @@ async function updateNotificationsBadge() {
           const msgLower = (n.message || '').toLowerCase();
           let clickAttrs = '';
           if (msgLower.includes('réclamation') || msgLower.includes('relance')) {
-            clickAttrs = `onclick="handleNotifClick('${n.message.replace(/'/g, "\\\\'")}')" style="cursor: pointer;"`;
+            clickAttrs = `onclick="handleNotifClick('${n.message.replace(/'/g, "\\'")}')" style="cursor: pointer;"`;
           }
 
           listEl.innerHTML += `<div ${clickAttrs} class="notif-item" style="padding: 8px; border-bottom: 1px solid rgba(0,0,0,0.05); ${n.read ? 'opacity:0.6;' : ''}">
