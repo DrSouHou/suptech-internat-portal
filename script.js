@@ -633,7 +633,11 @@ async function renderResidentViews() {
 async function buildRoomGrid() {
   try {
     const res = await fetch(`${API_BASE_URL}/rooms`, { headers: getAuthHeaders() });
-    globalRoomsData = await res.json();
+    const data = await res.json();
+    console.log("RAW ROOM DATA:", data);
+
+    // Ensure array format even if backend returns { "rooms": [...] }
+    globalRoomsData = data.rooms || data;
     
     const tabsContainer = document.getElementById('floor-tabs');
     if(!tabsContainer) return;
@@ -786,16 +790,30 @@ function updateRoomDropdown() {
   
   console.log('Filtering rooms for:', normEtage, normType);
   
-  globalRoomsData.forEach(floor => {
-    const fName = normalizeStr(floor.name);
-    console.log('Checking floor:', floor.name, '->', fName);
-    if(fName === normEtage || (normEtage === 'rdc' && fName === 'rez-de-chaussee')) {
-      floor.rooms.forEach(r => {
-        const rType = normalizeStr(r.type);
-        if(rType === normType && r.status === 'free') {
-          availableRooms.push(r);
-        }
-      });
+  // Handle grouped by floor format OR flat array format
+  globalRoomsData.forEach(item => {
+    // If it's a grouped floor object
+    if (item.rooms && Array.isArray(item.rooms)) {
+      const fName = normalizeStr(item.name);
+      if(fName === normEtage || (normEtage === 'rdc' && fName === 'rez-de-chaussee')) {
+        item.rooms.forEach(r => {
+          const rType = normalizeStr(r.type);
+          if(rType === normType && (r.status === 'free' || r.status === 'libre')) {
+            availableRooms.push(r);
+          }
+        });
+      }
+    } 
+    // If it's a flat room object format fallback
+    else {
+      const r = item;
+      const roomFloor = normalizeStr(r.floor || r.etage || r.level);
+      console.log(`Checking room ${r.number || r.id}:`, roomFloor);
+      
+      const rType = normalizeStr(r.type);
+      if((roomFloor === normEtage || (normEtage === 'rdc' && roomFloor === 'rez-de-chaussee')) && rType === normType && (r.status === 'free' || r.status === 'libre')) {
+        availableRooms.push(r);
+      }
     }
   });
   
