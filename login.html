@@ -101,7 +101,7 @@
       console.log("Sending login request to:", `${window.location.origin}/api/auth/login`, loginData);
 
       try {
-        const res = await fetch(`${window.location.origin}/api/auth/login`, {
+        const res = await fetch('https://internat-638ln.ondigitalocean.app/suptech-internat-portal-backend/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(loginData)
