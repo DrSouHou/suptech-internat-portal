@@ -12,7 +12,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, origins=["https://internat-638ln.ondigitalocean.app"])
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "super-secret-key")
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
@@ -112,7 +112,7 @@ def token_required(f):
         return f(current_user, *args, **kwargs)
     return decorated
 
-@app.route("/api/auth/login", methods=["POST"])
+@app.route("/api/auth/login", methods=["POST"], strict_slashes=False)
 def login():
     try:
         data = request.get_json(force=True, silent=True)
