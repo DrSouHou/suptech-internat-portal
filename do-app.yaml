@@ -1,0 +1,13 @@
+name: suptech-internat-portal
+services:
+- name: backend
+  source_dir: backend/
+  run_command: gunicorn --bind 0.0.0.0:$PORT app:app
+  envs:
+  - key: MONGO_URI
+    type: SECRET
+  - key: SECRET_KEY
+    type: SECRET
+static_sites:
+- name: frontend
+  source_dir: /
